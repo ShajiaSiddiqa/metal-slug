@@ -130,17 +130,6 @@ void MoveTank(Tank& tank)
     }
 }
 
-//void MoveRocket(Rocket& rocket)
-//{
-//    rocket.position.y += rocket.speed * GetFrameTime(); 
-//
-//    if (rocket.position.y > SCREEN_HEIGHT)
-//    {
-//        rocket.position.y = rocket.texture.height;
-//        rocket.position.x = rand() % (SCREEN_WIDTH - rocket.texture.width);
-//    }
-//}
-
 void MoveRocket(Rocket rocket[], Player& player)
 {
     for (int i = 0; i < MAX_ROCKETS; i++)
