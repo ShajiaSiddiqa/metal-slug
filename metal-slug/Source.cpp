@@ -7,15 +7,10 @@ using namespace std;
 const int SCREEN_WIDTH = 1150;
 const int SCREEN_HEIGHT = 500;
 const int MAX_ROCKETS = 3;
+const int MAX_BULLETS = 1;
+
 
 // ------------------------------------------------------------- {STRUCTS}
-
-//struct Player
-//{
-//    Texture2D texture;
-//    Vector2 position;
-//    float speed;
-//};
 
 struct Player
 {
@@ -41,9 +36,20 @@ struct Rocket
     Vector2 direction;
 };
 
-// ------------------------------------------------------------------ {INIT FUNCTIONS}
+struct Bullet
+{
+    Texture2D texture;
+    Vector2 position;
+    float speed;
+    Vector2 direction;
+    //Rectangle collider;
+    bool active;
+};
 
-//  i added some changes in player, left right dir , changes images with the pressed key 
+// ------------------------------------------------------------------ {LOAD TEXTURES}
+
+
+// ------------------------------------------------------------------ {INIT FUNCTIONS}
 
 void InitPlayer(Player& player, int floor)
 {
@@ -90,7 +96,7 @@ void InitRocket(Rocket rocket[], Texture2D& rocketTexture, Player& player)
 {
     if (rocketTexture.id == 0)
     {
-        cout << "Failed to load tank texture!\n";
+        cout << "Failed to load Rocket texture!\n";
         exit(EXIT_FAILURE);
     }
 
@@ -110,7 +116,17 @@ void InitRocket(Rocket rocket[], Texture2D& rocketTexture, Player& player)
         float length = sqrt(direction.x * direction.x + direction.y * direction.y);
 
         rocket[i].direction = { direction.x / length, direction.y / length };                   // ya constant speed k liay kia ha 
-        // this is also the way to initialize, instead of seperately using dir.x = xyz... and dir.y = abc...
+    }
+}
+
+void InitBullets(Bullet bullets[], Texture2D& bulletTexture)
+{
+    for (int i = 0; i < MAX_BULLETS; i++)
+    {
+        bullets[i].texture = bulletTexture;
+        bullets[i].texture.height = 10;
+        bullets[i].texture.width = 10;
+        bullets[i].active = false;
     }
 }
 
@@ -125,6 +141,31 @@ void MoveTank(Tank& tank)
         tank.position.x = SCREEN_WIDTH;
     }
 }
+void MoveBullets(Bullet bullets[])
+{
+    for (int i = 0; i < MAX_BULLETS; i++)
+    {
+        if (bullets[i].active)
+        {
+            bullets[i].position.x += bullets[i].direction.x * bullets[i].speed * GetFrameTime();
+            bullets[i].position.y += bullets[i].direction.y * bullets[i].speed * GetFrameTime();
+
+            // test 
+
+            cout << "Bullet Moving: (" << bullets[i].position.x << ", " << bullets[i].position.y << ")" << endl;
+
+            if (bullets[i].position.x < 0 || bullets[i].position.x > SCREEN_WIDTH ||
+                bullets[i].position.y < 0 || bullets[i].position.y > SCREEN_HEIGHT)
+            {
+                bullets[i].active = false;
+
+                // test
+
+                cout << "Bullet Deactivated" << endl;
+            }
+        }
+    }
+}
 void MoveRocket(Rocket rocket[], Player& player)
 {
     for (int i = 0; i < MAX_ROCKETS; i++)
@@ -136,8 +177,6 @@ void MoveRocket(Rocket rocket[], Player& player)
         {
             rocket[i].position.x = rand() % (SCREEN_WIDTH - 40);
             rocket[i].position.y = -40;
-
-            //  i copied it from initRocket function
 
             Vector2 direction;
             direction.x = player.position.x - rocket[i].position.x;
@@ -163,34 +202,149 @@ void DrawRocket(Rocket rocket[])
         DrawTexture(rocket[i].texture, rocket[i].position.x, rocket[i].position.y, WHITE);
     }
 }
+void DrawBullets(Bullet bullets[])
+{
+    for (int i = 0; i < MAX_BULLETS; i++)
+    {
+        if (bullets[i].active)
+        {
+            DrawTexture(bullets[i].texture, bullets[i].position.x, bullets[i].position.y, WHITE);
+
+            // test 
+
+            cout << "Drawing Bullet at: " << bullets[i].position.x << ", " << bullets[i].position.y << endl;
+        }
+    }
+}
 void DrawPlayer(Player& player)
 {
     DrawTexture(player.currentTexture, player.position.x, player.position.y, WHITE);
 }
+
+// ------------------------------------------------------------------ {SHOOT FUNCTION}
+
+void ShootBullet(Bullet bullets[], Texture2D& bulletTexture, Player& player, Vector2 direction)
+{
+    for (int i = 0; i < MAX_BULLETS; i++)
+    {
+        if (!bullets[i].active)  
+        {
+            bullets[i].texture = bulletTexture;
+            bullets[i].position = { player.position.x, player.position.y /*+ 30 */};
+            bullets[i].speed = 400.0f;
+            bullets[i].direction = direction;
+            bullets[i].active = true;
+
+            // test 
+
+            cout << "Bullet Fired at Position: " << bullets[i].position.x << ", " << bullets[i].position.y << endl;  // Debug line
+            break;
+        }
+    }
+}
+
+void SwitchPlayerDirection(Player& player, float deltaTime, int& b1x, int& b2x)
+{
+
+    if (IsKeyDown(KEY_RIGHT) && player.position.x + player.currentTexture.width < SCREEN_WIDTH)
+    {
+        player.position.x += player.speed * deltaTime;
+        player.currentTexture = player.textureRight;    // Face right
+        player.isFacingRight = true;
+        b1x -= 2;
+        b2x -= 2;
+    }
+
+    if (IsKeyDown(KEY_LEFT) && player.position.x > 0)
+    {
+        player.position.x -= player.speed * deltaTime;
+        player.currentTexture = player.textureLeft;    // Face left
+        player.isFacingRight = false;
+    }
+
+}
+
+void PlayerJump(Player& player, int floor, int jumpMax) 
+{
+    if (IsKeyDown(KEY_UP) && player.position.y == floor)
+    {
+        player.isJumping = true;
+    }
+
+    if (player.isJumping) 
+    {
+        player.position.y -= 2;
+        if (player.position.y <= jumpMax) 
+        {
+            player.position.y = jumpMax;
+            player.isJumping = false;
+        }
+    }
+
+    if (!player.isJumping && player.position.y < floor && player.position.y >= jumpMax) 
+    {
+        player.position.y += 2;
+        if (player.position.y >= floor) 
+        {
+            player.position.y = floor;
+        }
+    }
+}
+void ShootBulletAction(void (*Shoot)(Bullet[], Texture2D&, Player&, Vector2), Bullet bullets[],
+    Texture2D& bulletTexture, Player& player, Vector2 direction, Sound shoot) 
+{
+    Shoot(bullets, bulletTexture, player, direction);
+    PlaySound(shoot);
+}
+
+
+void ShootBasedOnKeyPress(Bullet bullets[], Texture2D& bulletTexture, Player& player,
+    Sound shoot, void (*Shoot)(Bullet[], Texture2D&, Player&, Vector2)) 
+{
+    if (IsKeyPressed(KEY_A) && !player.isFacingRight) 
+    {
+        cout << "A key pressed!" << endl;
+        ShootBulletAction(Shoot, bullets, bulletTexture, player, { -1.0f, 0.0f }, shoot);
+    }
+    if (IsKeyPressed(KEY_D) && player.isFacingRight) 
+    {
+        cout << "D key pressed!" << endl;
+        ShootBulletAction(Shoot, bullets, bulletTexture, player, { 1.0f, 0.0f }, shoot);
+    }
+    if (IsKeyPressed(KEY_W))
+    {
+        cout << "W key pressed!" << endl;
+        ShootBulletAction(Shoot, bullets, bulletTexture, player, { 0.0f, -1.0f }, shoot);
+    }
+    if (IsKeyPressed(KEY_S)) 
+    {
+        cout << "S key pressed!" << endl;
+        ShootBulletAction(Shoot, bullets, bulletTexture, player, { 0.0f, 1.0f }, shoot);
+    }
+}
+
+// ----------------------------------------------------------------------- (MAIN)
 
 int main()
 {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Metal Slug - Starter");
     InitAudioDevice();
 
-    SetTargetFPS(60);
+    SetTargetFPS(83);
 
     Texture2D b1 = LoadTexture("b1_metal_slug.png");
     Texture2D b2 = LoadTexture("b2_metal_slug.png");
     Texture2D title = LoadTexture("title.png");
     Texture2D startWall = LoadTexture("StartWall.png");
-
+    Texture2D bulletTextureLeft = LoadTexture("bulletLeft.png");
+    Texture2D bulletTextureRight = LoadTexture("bulletRight.png");
     Texture2D rocketTexture = LoadTexture("crab_enemy.png");
-
     Sound shoot = LoadSound("gun_shoot.wav");
 
-    /*if (shoot.stream == nullptr)                     // mujhay is ka check samajh nahi araha
-    {
-        cout << "Failed to load sound!\n";              // " == " per error ha, don't know Y?
-        exit(EXIT_FAILURE);
-    }*/
+    Bullet bullets[MAX_BULLETS];
+    Rocket rocket[MAX_ROCKETS];
 
-
+    void (*Shoot)(Bullet[], Texture2D&, Player&, Vector2 );
 
     Player player;
     int floor = 375;
@@ -199,8 +353,11 @@ int main()
     Player player2;
     Tank tank;
     InitTank(tank);
-    Rocket rocket[MAX_ROCKETS];
     InitRocket(rocket, rocketTexture, player);
+
+    InitBullets(bullets, bulletTextureLeft);
+    Shoot = ShootBullet;
+
     b1.height = SCREEN_HEIGHT;
     b2.height = SCREEN_HEIGHT;
     b1.width = SCREEN_WIDTH;
@@ -227,7 +384,8 @@ int main()
         {
             if (!gameover)
             {
-                DrawTexture(title, SCREEN_WIDTH / 2 - title.width / 2, SCREEN_HEIGHT / 2 - title.height / 2, WHITE);
+                DrawTexture(title, SCREEN_WIDTH / 2 - title.width / 2, SCREEN_HEIGHT / 2
+                    - title.height / 2, WHITE);
                 if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER))
                 {
                     gameover = true;
@@ -235,7 +393,8 @@ int main()
             }
             else
             {
-                DrawTexture(startWall, SCREEN_WIDTH / 2 - startWall.width / 2, SCREEN_HEIGHT / 2 - startWall.height / 2, WHITE);
+                DrawTexture(startWall, SCREEN_WIDTH / 2 - startWall.width / 2, 
+                    SCREEN_HEIGHT / 2 - startWall.height / 2, WHITE);
                 if (IsKeyPressed(KEY_ENTER))
                 {
                     gamestarted = true;
@@ -247,8 +406,6 @@ int main()
 
         EndDrawing();
 
-
-
         if (gamestarted && !gameover)
         {
             while (!WindowShouldClose())
@@ -259,54 +416,20 @@ int main()
                 DrawTexture(b1, b1x, 0, WHITE);
                 DrawTexture(b2, b2x, 0, WHITE);
 
+                SwitchPlayerDirection(player, deltaTime, b1x, b2x);
 
-                if (IsKeyDown(KEY_RIGHT) && player.position.x + player.currentTexture.width < SCREEN_WIDTH)
-                {
-                    player.position.x += player.speed * deltaTime;
-                    player.currentTexture = player.textureRight;    // Face right
-                    player.isFacingRight = true;
-                    b1x -= 2;
-                    b2x -= 2;
-                }
-
-                if (IsKeyDown(KEY_LEFT) && player.position.x > 0)
-                {
-                    player.position.x -= player.speed * deltaTime;
-                    player.currentTexture = player.textureLeft;    // Face left
-
-                    PlaySound(shoot);                                   // for test 
-
-                    player.isFacingRight = false;
-                }
-
-                if (IsKeyDown(KEY_UP)
-                    && player.position.y == floor)
-                {
-                    player.isJumping = true;
-                }
-                if (player.isJumping)
-                {
-                    player.position.y -= 2;
-                    if (player.position.y <= jumpMax)
-                    {
-                        player.position.y = jumpMax;
-                        player.isJumping = false;
-                    }
-                }
-                if (player.isJumping == false && player.position.y < floor and player.position.y >= jumpMax)
-                {
-                    player.position.y += 2;
-                    if (player.position.y >= floor)
-                    {
-                        player.position.y = floor;
-                    }
-                }
+                PlayerJump(player, floor, jumpMax);
 
                 if (b1x <= -SCREEN_WIDTH)
                     b1x = SCREEN_WIDTH;
 
                 if (b2x <= -SCREEN_WIDTH)
                     b2x = SCREEN_WIDTH;
+
+                ShootBasedOnKeyPress(bullets, bulletTexture, player, shoot, Shoot);
+
+                MoveBullets(bullets);
+                DrawBullets(bullets);
 
                 DrawTank(tank);
                 MoveTank(tank);
@@ -319,9 +442,7 @@ int main()
 
                 EndDrawing();
             }
-
         }
-
     }
 
     UnloadTexture(player.textureRight);
@@ -333,7 +454,6 @@ int main()
     UnloadSound(shoot);
 
     CloseWindow();
-
 
     return 0;
 }
