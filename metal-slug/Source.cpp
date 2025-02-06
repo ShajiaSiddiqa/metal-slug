@@ -7,15 +7,9 @@ using namespace std;
 const int SCREEN_WIDTH = 1150;
 const int SCREEN_HEIGHT = 500;
 const int MAX_ROCKETS = 3;
+const int MAX_BULLET = 5;
 
-        // ------------------------------------------------------------- {STRUCTS}
-
-//struct Player
-//{
-//    Texture2D texture;
-//    Vector2 position;
-//    float speed;
-//};
+// ------------------------------------------------------------- {STRUCTS}
 
 struct Player
 {
@@ -28,6 +22,14 @@ struct Player
     bool isFacingRight;                     
 };
 
+struct bullet
+{
+    Texture2D texture;
+    Vector2 position;
+    float speed;
+    Vector2 direction;
+    Rectangle col;
+};
 
 struct Tank
 {
@@ -48,10 +50,12 @@ struct Rocket
 
 //  i added some changes in player, left right dir , changes images with the pressed key 
 
+
+
 void InitPlayer(Player& player)
 {
-    player.textureRight = LoadTexture("player.png");  // Facing right
-    player.textureLeft = LoadTexture("player2.png");  // Facing left
+    player.textureRight = LoadTexture("player.png");    // Facing right
+    player.textureLeft = LoadTexture("player2.png");    // Facing left
 
     if (player.textureRight.id == 0 || player.textureLeft.id == 0)
     {
@@ -65,27 +69,22 @@ void InitPlayer(Player& player)
     player.textureLeft.height = 100;
     player.currentTexture.width = 100;
     player.currentTexture.height = 100;
-
     player.currentTexture = player.textureRight;            // Facing right (defalt)
     player.position = { 100, float(SCREEN_HEIGHT - player.textureRight.height - 25) };
     player.speed = 200.0f;
     player.isFacingRight = true;                      
 }
 
-
 void InitTank(Tank& tank)
 {
     tank.texture = LoadTexture("tank_enemy.png");
-
     if (tank.texture.id == 0) 
     {
         cout << "Failed to load tank texture!\n";
         exit(EXIT_FAILURE);
     }
-
-    tank.texture.height = 180;
-    tank.texture.width = 180;
-
+    tank.texture.height = 160;
+    tank.texture.width = 160;
     tank.position = { SCREEN_WIDTH, float(SCREEN_HEIGHT - tank.texture.height - 10) }; 
     tank.speed = 100.0f; 
 }
@@ -109,12 +108,32 @@ void InitRocket(Rocket rocket[], Texture2D& rocketTexture, Player& player)
 
         Vector2 direction;
         direction.x = player.position.x - rocket[i].position.x;              // Pythagorus theorem use kia ha player or rocket ka distance compute kernay k liay  
-        direction.y = player.position.y - rocket[i].position.y;
+        direction.y = player.position.y - rocket[i].position.y;              
 
         float length = sqrt(direction.x * direction.x + direction.y * direction.y);
 
         rocket[i].direction = { direction.x / length, direction.y / length };                   // ya constant speed k liay kia ha 
-        // this is also the way to initialize, instead of seperately using dir.x = xyz... and dir.y = abc...
+    }
+}
+
+void InitBullet(bullet bullet[], Texture2D& bulletTexture, Rocket& rocket)
+{
+    if (bulletTexture.id == 0)
+    {
+        cout << "Failed to load tank texture!\n";
+        exit(EXIT_FAILURE);
+    }
+    for (int i = 0; i < MAX_BULLET; i++)
+    {
+        bullet[i].texture = bulletTexture;
+        bullet[i].texture.height = 20;
+        bullet[i].texture.width = 20;
+        bullet[i].speed = 200.0f;
+
+        Vector2 direction;
+        direction = { rocket.position.x - bullet->position.x , rocket.position.y - bullet->position.y };
+
+        //float length = sqrt(direction.x / length, direction.y / length);
     }
 }
 
@@ -130,16 +149,6 @@ void MoveTank(Tank& tank)
     }
 }
 
-//void MoveRocket(Rocket& rocket)
-//{
-//    rocket.position.y += rocket.speed * GetFrameTime(); 
-//
-//    if (rocket.position.y > SCREEN_HEIGHT)
-//    {
-//        rocket.position.y = rocket.texture.height;
-//        rocket.position.x = rand() % (SCREEN_WIDTH - rocket.texture.width);
-//    }
-//}
 
 void MoveRocket(Rocket rocket[], Player& player)
 {
@@ -199,16 +208,9 @@ int main()
     Texture2D b2 = LoadTexture("b2_metal_slug.png");
     Texture2D title = LoadTexture("title.png");
     Texture2D rocketTexture = LoadTexture("crab_enemy.png");
+    Texture2D bulletTexture = LoadTexture(" ");
 
     Sound shoot = LoadSound("gun_shoot.wav");
-
-    /*if (shoot.stream == nullptr)                     // mujhay is ka check samajh nahi araha 
-    {
-        cout << "Failed to load sound!\n";              // " == " per error ha, don't know Y?
-        exit(EXIT_FAILURE);
-    }*/
-   
-
 
     Player player;
     InitPlayer(player);
@@ -264,34 +266,23 @@ int main()
                 DrawTexture(b1, b1x, 0, WHITE);
                 DrawTexture(b2, b2x, 0, WHITE);
 
-                /*if (IsKeyDown(KEY_RIGHT))
-                {
-                    player.position.x += player.speed * deltaTime;
-                    b1x -= 2;
-                    b2x -= 2;
-                }
-                if (IsKeyDown(KEY_LEFT))
-                {
-                    player.position.x -= player.speed * deltaTime;
-
-                }*/
                                                                                      // I have Added boundary checks @ Miss KB
 
                 if (IsKeyDown(KEY_RIGHT) && player.position.x + player.currentTexture.width < SCREEN_WIDTH)
                 {
                     player.position.x += player.speed * deltaTime;
-                    player.currentTexture = player.textureRight;    // Face right
-                    player.isFacingRight = true;
-                    b1x -= 2;
-                    b2x -= 2;
-                }
+                    player.currentTexture = player.textureRight;                            // Face right
+                    player.isFacingRight = true;                                            
+                    b1x -= 2;                                                               
+                    b2x -= 2;                                                               
+                }                                                                           
+                                                                                            
+                if (IsKeyDown(KEY_LEFT) && player.position.x > 0)                           
+                {                                                                           
+                    player.position.x -= player.speed * deltaTime;                          
+                    player.currentTexture = player.textureLeft;                            // Face left
 
-                if (IsKeyDown(KEY_LEFT) && player.position.x > 0)
-                {
-                    player.position.x -= player.speed * deltaTime;
-                    player.currentTexture = player.textureLeft;    // Face left
-
-                    PlaySound(shoot);                                   // for test 
+                    PlaySound(shoot);                                                       // for test 
 
                     player.isFacingRight = false;
                 }
@@ -333,5 +324,3 @@ int main()
     
     return 0;
 }
-
-
