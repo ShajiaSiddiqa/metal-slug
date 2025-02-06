@@ -8,7 +8,7 @@ const int SCREEN_WIDTH = 1150;
 const int SCREEN_HEIGHT = 500;
 const int MAX_ROCKETS = 3;
 
-        // ------------------------------------------------------------- {STRUCTS}
+// ------------------------------------------------------------- {STRUCTS}
 
 //struct Player
 //{
@@ -19,23 +19,20 @@ const int MAX_ROCKETS = 3;
 
 struct Player
 {
-    Texture2D textureRight;                  // --->  Right-facing texture
-    Texture2D textureLeft;                   // --->  Left-facing texture
+    Texture2D textureRight;
+    Texture2D textureLeft;
     Texture2D currentTexture;                // --->  Active texture based on direction
     Vector2 position;
     float speed;
-
-    bool isFacingRight;                     
+    bool isJumping;
+    bool isFacingRight;
 };
-
-
 struct Tank
 {
     Texture2D texture;
     Vector2 position;
     float speed;
 };
-
 struct Rocket
 {
     Texture2D texture;
@@ -48,7 +45,7 @@ struct Rocket
 
 //  i added some changes in player, left right dir , changes images with the pressed key 
 
-void InitPlayer(Player& player)
+void InitPlayer(Player& player, int floor)
 {
     player.textureRight = LoadTexture("player.png");  // Facing right
     player.textureLeft = LoadTexture("player2.png");  // Facing left
@@ -66,18 +63,18 @@ void InitPlayer(Player& player)
     player.currentTexture.width = 100;
     player.currentTexture.height = 100;
 
-    player.currentTexture = player.textureRight;            // Facing right (defalt)
-    player.position = { 100, float(SCREEN_HEIGHT - player.textureRight.height - 25) };
+    player.currentTexture = player.textureRight;
+    player.position = { 100, (float)floor };
     player.speed = 200.0f;
-    player.isFacingRight = true;                      
+    player.isFacingRight = true;
+    player.isJumping = false;
+
 }
-
-
 void InitTank(Tank& tank)
 {
     tank.texture = LoadTexture("tank_enemy.png");
 
-    if (tank.texture.id == 0) 
+    if (tank.texture.id == 0)
     {
         cout << "Failed to load tank texture!\n";
         exit(EXIT_FAILURE);
@@ -86,10 +83,9 @@ void InitTank(Tank& tank)
     tank.texture.height = 180;
     tank.texture.width = 180;
 
-    tank.position = { SCREEN_WIDTH, float(SCREEN_HEIGHT - tank.texture.height - 10) }; 
-    tank.speed = 100.0f; 
+    tank.position = { SCREEN_WIDTH, float(SCREEN_HEIGHT - tank.texture.height - 10) };
+    tank.speed = 100.0f;
 }
-
 void InitRocket(Rocket rocket[], Texture2D& rocketTexture, Player& player)
 {
     if (rocketTexture.id == 0)
@@ -103,7 +99,7 @@ void InitRocket(Rocket rocket[], Texture2D& rocketTexture, Player& player)
         rocket[i].texture = rocketTexture;
         rocket[i].texture.height = 40;
         rocket[i].texture.width = 40;
-        rocket[i].position = { (float)(rand() % (SCREEN_WIDTH - 40)), (float)( - (rand() % 300))};
+        rocket[i].position = { (float)(rand() % (SCREEN_WIDTH - 40)), (float)(-(rand() % 300)) };
 
         rocket[i].speed = 100.0f;
 
@@ -122,14 +118,13 @@ void InitRocket(Rocket rocket[], Texture2D& rocketTexture, Player& player)
 
 void MoveTank(Tank& tank)
 {
-    tank.position.x -= tank.speed * GetFrameTime(); 
+    tank.position.x -= tank.speed * GetFrameTime();
 
     if (tank.position.x < -tank.texture.width)
     {
-        tank.position.x = SCREEN_WIDTH; 
+        tank.position.x = SCREEN_WIDTH;
     }
 }
-
 void MoveRocket(Rocket rocket[], Player& player)
 {
     for (int i = 0; i < MAX_ROCKETS; i++)
@@ -145,12 +140,12 @@ void MoveRocket(Rocket rocket[], Player& player)
             //  i copied it from initRocket function
 
             Vector2 direction;
-            direction.x = player.position.x - rocket[i].position.x;                
-            direction.y = player.position.y - rocket[i].position.y;              
+            direction.x = player.position.x - rocket[i].position.x;
+            direction.y = player.position.y - rocket[i].position.y;
 
             float length = sqrt(direction.x * direction.x + direction.y * direction.y);
 
-            rocket[i].direction = { direction.x / length, direction.y / length };                   
+            rocket[i].direction = { direction.x / length, direction.y / length };
         }
     }
 }
@@ -161,7 +156,6 @@ void DrawTank(Tank& tank)
 {
     DrawTexture(tank.texture, tank.position.x, tank.position.y, WHITE);
 }
-
 void DrawRocket(Rocket rocket[])
 {
     for (int i = 0; i < MAX_ROCKETS; i++)
@@ -169,10 +163,7 @@ void DrawRocket(Rocket rocket[])
         DrawTexture(rocket[i].texture, rocket[i].position.x, rocket[i].position.y, WHITE);
     }
 }
-
-// this function is also changed            
-
-void DrawPlayer(Player& player)  
+void DrawPlayer(Player& player)
 {
     DrawTexture(player.currentTexture, player.position.x, player.position.y, WHITE);
 }
@@ -180,36 +171,36 @@ void DrawPlayer(Player& player)
 int main()
 {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Metal Slug - Starter");
-    InitAudioDevice();  
+    InitAudioDevice();
 
     SetTargetFPS(60);
 
     Texture2D b1 = LoadTexture("b1_metal_slug.png");
     Texture2D b2 = LoadTexture("b2_metal_slug.png");
     Texture2D title = LoadTexture("title.png");
+    Texture2D startWall = LoadTexture("StartWall.png");
+
     Texture2D rocketTexture = LoadTexture("crab_enemy.png");
 
     Sound shoot = LoadSound("gun_shoot.wav");
 
-    /*if (shoot.stream == nullptr)                     // mujhay is ka check samajh nahi araha 
+    /*if (shoot.stream == nullptr)                     // mujhay is ka check samajh nahi araha
     {
         cout << "Failed to load sound!\n";              // " == " per error ha, don't know Y?
         exit(EXIT_FAILURE);
     }*/
-   
+
 
 
     Player player;
-    InitPlayer(player);
+    int floor = 375;
+    InitPlayer(player, floor);
 
     Player player2;
-
     Tank tank;
     InitTank(tank);
-
     Rocket rocket[MAX_ROCKETS];
     InitRocket(rocket, rocketTexture, player);
-
     b1.height = SCREEN_HEIGHT;
     b2.height = SCREEN_HEIGHT;
     b1.width = SCREEN_WIDTH;
@@ -220,28 +211,43 @@ int main()
 
     bool gamestarted = false;
     bool gameover = false;
-    
+
+    int jumpMax = 301;
+
     title.width = SCREEN_WIDTH;
     title.height = SCREEN_HEIGHT;
-
+    startWall.width = SCREEN_WIDTH;
+    startWall.height = SCREEN_HEIGHT;
     while (!WindowShouldClose())
     {
-
         BeginDrawing();
         ClearBackground(BLACK);
 
         if (!gamestarted)
         {
-            DrawTexture(title, SCREEN_WIDTH / 2 - title.width / 2, SCREEN_HEIGHT / 2 - title.height / 2, WHITE);
-
-            if (IsKeyPressed(KEY_ENTER))
+            if (!gameover)
             {
-                gamestarted = true;
-                gameover = false;
+                DrawTexture(title, SCREEN_WIDTH / 2 - title.width / 2, SCREEN_HEIGHT / 2 - title.height / 2, WHITE);
+                if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER))
+                {
+                    gameover = true;
+                }
+            }
+            else
+            {
+                DrawTexture(startWall, SCREEN_WIDTH / 2 - startWall.width / 2, SCREEN_HEIGHT / 2 - startWall.height / 2, WHITE);
+                if (IsKeyPressed(KEY_ENTER))
+                {
+                    gamestarted = true;
+                    gameover = false;
+
+                }
             }
         }
 
-		EndDrawing();
+        EndDrawing();
+
+
 
         if (gamestarted && !gameover)
         {
@@ -253,18 +259,6 @@ int main()
                 DrawTexture(b1, b1x, 0, WHITE);
                 DrawTexture(b2, b2x, 0, WHITE);
 
-                /*if (IsKeyDown(KEY_RIGHT))
-                {
-                    player.position.x += player.speed * deltaTime;
-                    b1x -= 2;
-                    b2x -= 2;
-                }
-                if (IsKeyDown(KEY_LEFT))
-                {
-                    player.position.x -= player.speed * deltaTime;
-
-                }*/
-                                                                                     // I have Added boundary checks @ Miss KB
 
                 if (IsKeyDown(KEY_RIGHT) && player.position.x + player.currentTexture.width < SCREEN_WIDTH)
                 {
@@ -285,22 +279,43 @@ int main()
                     player.isFacingRight = false;
                 }
 
+                if (IsKeyDown(KEY_UP)
+                    && player.position.y == floor)
+                {
+                    player.isJumping = true;
+                }
+                if (player.isJumping)
+                {
+                    player.position.y -= 2;
+                    if (player.position.y <= jumpMax)
+                    {
+                        player.position.y = jumpMax;
+                        player.isJumping = false;
+                    }
+                }
+                if (player.isJumping == false && player.position.y < floor and player.position.y >= jumpMax)
+                {
+                    player.position.y += 2;
+                    if (player.position.y >= floor)
+                    {
+                        player.position.y = floor;
+                    }
+                }
+
                 if (b1x <= -SCREEN_WIDTH)
                     b1x = SCREEN_WIDTH;
 
                 if (b2x <= -SCREEN_WIDTH)
                     b2x = SCREEN_WIDTH;
 
-                DrawTank(tank);  
-                MoveTank(tank);  
+                DrawTank(tank);
+                MoveTank(tank);
 
                 DrawRocket(rocket);
                 MoveRocket(rocket, player);
 
                 DrawPlayer(player);
                 DrawPlayer(player2);
-
-                DrawText("Move with Arrow Keys", 10, 10, 20, DARKGRAY);
 
                 EndDrawing();
             }
@@ -319,7 +334,7 @@ int main()
 
     CloseWindow();
 
-    
+
     return 0;
 }
 
