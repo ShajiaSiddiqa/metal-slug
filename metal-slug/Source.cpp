@@ -8,11 +8,11 @@ using namespace std;
 
 const int SCREEN_WIDTH = 1150;
 const int SCREEN_HEIGHT = 500;
-const int MAX_TANK = 3;
+const int MAX_TANK = 1;
 const int MAX_DRONES = 3;
 const int MAX_ROCKETS = 3;
 const int MAX_BULLETS = 3;
-const int MAX_ENEMIES = 3;
+const int MAX_ENEMIES = 1;
 const int MAX_HELICOPTER = 2;
 const int MAX_DRONE_BULLETS = 3;
 
@@ -127,11 +127,11 @@ void InitBarrel(Barrel& barrel)
         exit(EXIT_FAILURE);
     }
 
-    barrel.texture.height = 90;
-    barrel.texture.width = 90;
+    barrel.texture.height = 70;
+    barrel.texture.width = 70;
     barrel.position = { SCREEN_WIDTH, float(SCREEN_HEIGHT - barrel.texture.height - 10) };
     barrel.collider = { barrel.position.x, barrel.position.y };
-    barrel.speed = 50.0f;
+    barrel.speed =200.0f;
 }
 void InitPlayer(Player& player, int floor)
 {
@@ -144,12 +144,12 @@ void InitPlayer(Player& player, int floor)
         exit(EXIT_FAILURE);
     }
 
+    player.textureUp.width = 80;
+    player.textureUp.height = 80;
     player.textureRight.height = 100;
     player.textureRight.width = 100;
     player.textureLeft.width = 100;
     player.textureLeft.height = 100;
-    player.textureUp.width = 100;
-    player.textureUp.height = 100;
     player.currentTexture.width = 100;
     player.currentTexture.height = 100;
 
@@ -660,7 +660,7 @@ void DrawDroneBullets(DroneBullet droneBullets[])
     {
         if (droneBullets[i].active) 
         {
-            DrawRectangle(droneBullets[i].position.x, droneBullets[i].position.y, 10, 10, BLUE);
+            DrawRectangle(droneBullets[i].position.x, droneBullets[i].position.y, 10, 10, RED);
         }
     }
 }
@@ -889,18 +889,17 @@ int main()
         BeginDrawing();
         ClearBackground(BLACK);
 
-            if (gameover)
-            {
-                DrawText("GAME OVER", SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2 - 100, 50, RED);
-                DrawText(TextFormat("Final Score: %d", score), SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2 - 50, 30, DARKGRAY);
-                DrawText("Press ENTER to Restart or ESC to Quit", SCREEN_WIDTH / 2 - 200, SCREEN_HEIGHT / 2 + 50, 20, DARKGRAY);
-                StopSound(backSound1);
-                StopSound(backSound2);
-                StopSound(backSound3);
-                PlaySound(GameOver);
+        if (gameover)
+        {
+            DrawText("GAME OVER", SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2 - 100, 50, RED);
+            DrawText(TextFormat("Final Score: %d", score), SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2 - 50, 30, DARKGRAY);
+            DrawText("Press ENTER to Restart or ESC to Quit", SCREEN_WIDTH / 2 - 200, SCREEN_HEIGHT / 2 + 50, 20, DARKGRAY);
+            StopSound(backSound1);
+            StopSound(backSound2);
+            StopSound(backSound3);
+            PlaySound(GameOver);
+        }
 
-                
-            }
 
         if (!gamestarted)
         {
@@ -911,9 +910,10 @@ int main()
                 if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER))
                 {
                     gamestarted = true;
+                    startLevel1 = true;
                 }
             }
-            else
+            else if (startLevel1)
             {
                 DrawTexture(startWall, SCREEN_WIDTH / 2 - startWall.width / 2,
                     SCREEN_HEIGHT / 2 - startWall.height / 2, WHITE);
@@ -921,6 +921,7 @@ int main()
                 {
                     gamestarted = true;
                     gameover = false;
+                    startLevel1 = false;
 
                 }
             }
@@ -937,16 +938,9 @@ int main()
                 BeginDrawing();
                 ClearBackground(RAYWHITE);
 
-                MoveTank(tank);
-                MoveEnemy(Enemy);
-                MoveBarrel(barrel);
                 MoveBullets(bullets);
-                MoveRocket(rocket, player);
-                MoveDrones(drones, deltaTime);
                 PlayerJump(player, floor, jumpMax);
-                MoveHelicopter(helicopter, player);
                 CheckCollision(bullets, rocket, score);
-                MoveDroneBullets(droneBullets, deltaTime);
                 DroneShooting(drones, droneBullets, player);
                 CheckCollisionWithTank(bullets, tank, score);
                 CheckCollisionWithEnemy(bullets, Enemy, score);
@@ -963,7 +957,7 @@ int main()
                     DrawTexture(level1, SCREEN_WIDTH / 2 - level1.width / 2, SCREEN_HEIGHT / 2 - level1.height / 2, WHITE);
                     DrawTexture(b1, b1x, 0, WHITE);
                     DrawTexture(b2, b2x, 0, WHITE);
-                    if (!IsSoundPlaying(backSound1)) 
+                    if (!IsSoundPlaying(backSound1))
                         PlaySound(backSound1);
                     SwitchPlayerDirection(player, deltaTime, b1x, b2x);
 
@@ -978,18 +972,21 @@ int main()
                     DrawPlayer(player);
                     DrawPlayer(player2);
                     DrawEnemy(Enemy);
+                    MoveEnemy(Enemy);
+                    MoveRocket(rocket, player);
+
                 }
 
                 // .:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.
                 //                          LEVEL # 02
                 // .:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.
 
-                else if (score >= 20 && !startLevel2) 
+                else if (score >= 20 && !startLevel2)
                 {
                     StopSound(backSound1);
                     DrawTexture(level2, SCREEN_WIDTH / 2 - level2.width / 2, SCREEN_HEIGHT / 2 - level2.height / 2, WHITE);
 
-                    if (IsKeyPressed(KEY_ENTER)) 
+                    if (IsKeyPressed(KEY_ENTER))
                     {
                         startLevel2 = true;
                         PlaySound(levelComp);
@@ -1004,6 +1001,7 @@ int main()
                         PlaySound(backSound2);
                     SwitchPlayerDirection(player, deltaTime, b3x, b4x);
                     CheckPlayerDroneBulletCollision(player, droneBullets, health);
+                    MoveTank(tank);
 
                     DrawTank(tank);
                     MoveBarrel(barrel);
@@ -1012,6 +1010,7 @@ int main()
                     DrawPlayer(player2);
                     DrawBullets(bullets);
                     DrawHelicopter(helicopter);
+                    MoveHelicopter(helicopter, player);
 
                     if (b3x <= -SCREEN_WIDTH)
                         b3x = SCREEN_WIDTH;
@@ -1020,7 +1019,7 @@ int main()
                         b4x = SCREEN_WIDTH;
 
                 }
-                
+
                 // .:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.
                 //                          LEVEL # 03
                 // .:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.
@@ -1060,11 +1059,14 @@ int main()
                     DrawPlayer(player);
                     DrawBullets(bullets);
                     DrawDroneBullets(droneBullets);
+                    MoveDrones(drones, deltaTime);
+                    MoveDroneBullets(droneBullets, deltaTime);
+
                     CheckPlayerDroneBulletCollision(player, droneBullets, health);
                     if (health <= 0)
                     {
-                        gameover = true;  
-                        break; 
+                        gameover = true;
+                        break;
                     }
                 }
 
@@ -1073,44 +1075,54 @@ int main()
                 DrawRectangle(SCREEN_WIDTH - healthBarWidth - 10, 10, healthBarWidth * healthPercentage, healthBarHeight, GREEN);  // Health Bar
                 DrawText(TextFormat("HEALTH: %d", health), SCREEN_WIDTH - 250, 7, 40, RED);
 
-             
+                if (score >= 100)
+                {
+                    DrawText("GAME WON", SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2 - 100, 50, RED);
+                    DrawText(TextFormat("Final Score: %d", score), SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2 - 50, 30, DARKGRAY);
+                    DrawText("Press ENTER to Restart or ESC to Quit", SCREEN_WIDTH / 2 - 200, SCREEN_HEIGHT / 2 + 50, 20, DARKGRAY);
+                    StopSound(backSound1);
+                    StopSound(backSound2);
+                    StopSound(backSound3);
+                    PlaySound(levelComp);
+                }
 
                 EndDrawing();
             }
         }
-    }
-    // game restarts here
-    if (IsKeyPressed(KEY_ENTER))
-    {
-        score = 0;
-        health = 20;
-        gameover = false;
-        gamestarted = true;
-        startLevel1 = false;
-        startLevel2 = false;
-        startLevel3 = false;
-        healthPercentage = (float)health / 20;
-        InitTank(tank);
-        InitBarrel(barrel);
-        InitPlayer(player, floor);
-        InitDroneBullets(droneBullets);
-        InitEnemy(Enemy, enemy, floor);
-        InitDrone(drones, droneTexture);
-        InitBullets(bullets, bulletTextureRight);
-        InitRocket(rocket, rocketTexture, player);
-        InitHelicopter(helicopter, helicopter1, player);
 
-        b1x = 0;
-        b2x = SCREEN_WIDTH;
-        b3x = 0;
-        b4x = SCREEN_WIDTH;
-        b5x = 0;
-        b6x = SCREEN_WIDTH;
+        // game restarts here
+        if (IsKeyPressed(KEY_ENTER))
+        {
+            score = 0;
+            health = 20;
+            gameover = false;
+            gamestarted = true;
+            startLevel1 = false;
+            startLevel2 = false;
+            startLevel3 = false;
+            healthPercentage = (float)health / 20;
+            InitTank(tank);
+            InitBarrel(barrel);
+            InitPlayer(player, floor);
+            InitDroneBullets(droneBullets);
+            InitEnemy(Enemy, enemy, floor);
+            InitDrone(drones, droneTexture);
+            InitBullets(bullets, bulletTextureRight);
+            InitRocket(rocket, rocketTexture, player);
+            InitHelicopter(helicopter, helicopter1, player);
 
-        StopSound(GameOver);
-        StopSound(backSound1);
-        StopSound(backSound2);
-        StopSound(backSound3);
+            b1x = 0;
+            b2x = SCREEN_WIDTH;
+            b3x = 0;
+            b4x = SCREEN_WIDTH;
+            b5x = 0;
+            b6x = SCREEN_WIDTH;
+
+            StopSound(GameOver);
+            StopSound(backSound1);
+            StopSound(backSound2);
+            StopSound(backSound3);
+        }
     }
     // ....................UNLOAD TEXTURES
     UnloadTexture(player.textureRight);
