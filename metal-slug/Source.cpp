@@ -10,8 +10,11 @@ const int MAX_ROCKETS = 3;
 const int MAX_BULLETS = 1;
 const int MAX_ENEMIES = 3;
 const int MAX_HELICOPTER = 2;
+const int MAX_DRONES = 3;
+const int MAX_DRONE_BULLETS = 3;
 
 // ------------------------------------------------------------- {STRUCTS}
+
 struct Tank
 {
     Texture2D texture;
@@ -71,6 +74,24 @@ struct Helicopter
     Rectangle collider;
     Vector2 direction;
 };
+struct DroneBullet {
+    Vector2 position;
+    Vector2 direction;
+    float speed;
+    bool active;
+    Rectangle collider;
+};
+struct Drone {
+    Texture2D texture;
+    Vector2 position;
+    float speed;
+    Rectangle collider;
+    bool active;
+    float verticalDirection;  // 1 for down, -1 for up
+    float timeSinceLastShot;
+    float shootInterval;
+};
+
 // ------------------------------------------------------------------ {INIT FUNCTIONS}
 
 void InitTank(Tank& tank)
@@ -186,7 +207,7 @@ void InitHelicopter(Helicopter helicopter[], Texture2D& helicopterTexture, Playe
     float rocketPosX = (rand() % (SCREEN_WIDTH - 40));
     float rocketPosY = -(rand() % 300);
 
-    for (int i = 0; i < MAX_ROCKETS; i++)
+    for (int i = 0; i < MAX_HELICOPTER; i++)
     {
         helicopter[i].texture = helicopterTexture;
         helicopter[i].texture.height = 40;
@@ -203,6 +224,38 @@ void InitHelicopter(Helicopter helicopter[], Texture2D& helicopterTexture, Playe
         float length = sqrt(direction.x * direction.x + direction.y * direction.y);
 
         helicopter[i].direction = { direction.x / length, direction.y / length };                   // ya constant speed k liay kia ha 
+    }
+}
+void InitDrone(Drone drones[], Texture2D& droneTexture) 
+{
+    if (droneTexture.id == 0) 
+    {
+        cout << "Failed to load drone texture!\n";
+        exit(EXIT_FAILURE);
+    }
+
+    for (int i = 0; i < MAX_DRONES; i++) 
+    {
+        drones[i].texture = droneTexture;
+        drones[i].texture.height = 140;
+        drones[i].texture.width = 140;
+        drones[i].position = { SCREEN_WIDTH + (float)(i * 200), (float)(100 + rand() % 200) };
+        drones[i].collider = { drones[i].position.x, drones[i].position.y, 80, 80 };
+        drones[i].speed = 150.0f;
+        drones[i].active = true;
+        drones[i].verticalDirection = 1;
+        drones[i].timeSinceLastShot = 0;
+        drones[i].shootInterval = 2.0f + (rand() % 2); // Random interval between 2-3 seconds
+    }
+}
+void InitDroneBullets(DroneBullet droneBullets[])
+{
+    for (int i = 0; i < MAX_DRONE_BULLETS; i++) 
+    {
+        droneBullets[i].position = { -100, -100 };
+        droneBullets[i].speed = 300.0f;
+        droneBullets[i].active = false;
+        droneBullets[i].collider = { -100, -100, 10, 10 };
     }
 }
 
@@ -340,6 +393,44 @@ void MoveHelicopter(Helicopter helicopter[], Player& player)
         }
     }
 }
+void MoveDrones(Drone drones[], float deltaTime) 
+{
+    for (int i = 0; i < MAX_DRONES; i++) 
+    {
+        if (drones[i].active) {
+            drones[i].position.x -= drones[i].speed * deltaTime;
+            drones[i].position.y += drones[i].speed * 0.5f * deltaTime * drones[i].verticalDirection;
+            if (drones[i].position.y > SCREEN_HEIGHT - 100) drones[i].verticalDirection = -1;
+            if (drones[i].position.y < 50) drones[i].verticalDirection = 1;
+            drones[i].collider.x = drones[i].position.x;
+            drones[i].collider.y = drones[i].position.y;
+            if (drones[i].position.x < -drones[i].texture.width) 
+            {
+                drones[i].position.x = SCREEN_WIDTH + (float)(rand() % 200);
+                drones[i].position.y = (float)(100 + rand() % 200);
+            }
+            drones[i].timeSinceLastShot += deltaTime;
+        }
+    }
+}
+void MoveDroneBullets(DroneBullet droneBullets[], float deltaTime)
+{
+    for (int i = 0; i < MAX_DRONE_BULLETS; i++) {
+
+        if (droneBullets[i].active) 
+        {
+            droneBullets[i].position.x += droneBullets[i].direction.x * droneBullets[i].speed * deltaTime;
+            droneBullets[i].position.y += droneBullets[i].direction.y * droneBullets[i].speed * deltaTime;
+            droneBullets[i].collider.x = droneBullets[i].position.x;
+            droneBullets[i].collider.y = droneBullets[i].position.y;
+            if (droneBullets[i].position.x < 0 || droneBullets[i].position.x > SCREEN_WIDTH ||
+                droneBullets[i].position.y < 0 || droneBullets[i].position.y > SCREEN_HEIGHT) 
+            {
+                droneBullets[i].active = false;
+            }
+        }
+    }
+}
 
 // ------------------------------------------------------------------ {COLLISION}
 
@@ -409,6 +500,43 @@ void CheckCollisionWithHelicopter(Bullet bullet[], Helicopter helicopter[], int&
         }
     }
 }
+void CheckCollisionWithDrones(Bullet bullets[], Drone drones[], int& score) 
+{
+    for (int i = 0; i < MAX_BULLETS; i++) 
+    {
+        if (bullets[i].active) {
+            for (int j = 0; j < MAX_DRONES; j++) 
+            {
+                if (drones[j].active && CheckCollisionRecs(bullets[i].collider, drones[j].collider)) {
+                    bullets[i].active = false;
+                    drones[j].active = false;
+                    score += 2; 
+                    drones[j].position.x = SCREEN_WIDTH + (float)(rand() % 200);
+                    drones[j].position.y = (float)(100 + rand() % 200);
+                    drones[j].active = true;
+                }
+            }
+        }
+    }
+}
+void CheckPlayerDroneBulletCollision(Player& player, DroneBullet droneBullets[], int& health) 
+{
+    Rectangle playerRect = { player.position.x, player.position.y,
+                           (float)player.currentTexture.width,
+                           (float)player.currentTexture.height };
+
+    for (int i = 0; i < MAX_DRONE_BULLETS; i++)
+    {
+        if (droneBullets[i].active) 
+        {
+            if (CheckCollisionRecs(playerRect, droneBullets[i].collider)) 
+            {
+                health--;
+                droneBullets[i].active = false;
+            }
+        }
+    }
+}
 
 // ------------------------------------------------------------------ {DRAW FUNCTIONS}
 
@@ -457,6 +585,26 @@ void DrawHelicopter(Helicopter helicopter[])
     for (int i = 0; i < MAX_HELICOPTER; i++)
     {
         DrawTexture(helicopter[i].texture, helicopter[i].position.x, helicopter[i].position.y, WHITE);
+    }
+}
+void DrawDrones(Drone drones[]) 
+{
+    for (int i = 0; i < MAX_DRONES; i++) 
+    {
+        if (drones[i].active) 
+        {
+            DrawTexture(drones[i].texture, drones[i].position.x, drones[i].position.y, WHITE);
+        }
+    }
+}
+void DrawDroneBullets(DroneBullet droneBullets[]) 
+{
+    for (int i = 0; i < MAX_DRONE_BULLETS; i++) 
+    {
+        if (droneBullets[i].active) 
+        {
+            DrawRectangle(droneBullets[i].position.x, droneBullets[i].position.y, 10, 10, BLUE);
+        }
     }
 }
 
@@ -545,6 +693,33 @@ void ShootBasedOnKeyPress(Bullet bullets[], Texture2D& bulletTextureLeft, Textur
         PlaySound(shoot);
     }
 }
+void DroneShooting(Drone drones[], DroneBullet droneBullets[], Player& player) 
+{
+    for (int i = 0; i < MAX_DRONES; i++) 
+    {
+        if (drones[i].active && drones[i].timeSinceLastShot >= drones[i].shootInterval) 
+        {
+            for (int j = 0; j < MAX_DRONE_BULLETS; j++)
+            {
+                if (!droneBullets[j].active)
+                {
+                    Vector2 direction;
+                    direction.x = player.position.x - drones[i].position.x;
+                    direction.y = player.position.y - drones[i].position.y;
+                    float length = sqrt(direction.x * direction.x + direction.y * direction.y);
+                    direction.x /= length;
+                    direction.y /= length;
+                    droneBullets[j].position = drones[i].position;
+                    droneBullets[j].direction = direction;
+                    droneBullets[j].active = true;
+                    droneBullets[j].collider = { droneBullets[j].position.x, droneBullets[j].position.y, 10, 10 };
+                    drones[i].timeSinceLastShot = 0;
+                    break;
+                }
+            }
+        }
+    }
+}
 
 // ----------------------------------------------------------------------- (MAIN)
 
@@ -557,12 +732,21 @@ int main()
     Sound shoot = LoadSound("gun_shoot.wav");
     Texture2D title = LoadTexture("title.png");
     Texture2D enemy = LoadTexture("enemy.png");
+    Texture2D droneTexture = LoadTexture("drone.png");
+
     Texture2D barrel1 = LoadTexture("barrel.png");
     Texture2D level2 = LoadTexture("level2.png");
     Texture2D b1 = LoadTexture("b1_metal_slug.png");
     Texture2D b2 = LoadTexture("b2_metal_slug.png");
+    if (b1.id == 0||b2.id==0)
+    {
+        cout << "Failed to load b1 background texture!" << endl;
+        exit(EXIT_FAILURE);
+    }
     Texture2D b3 = LoadTexture("b3_metal_slug.png");
     Texture2D b4 = LoadTexture("b4_metal_slug.png");
+    Texture2D b5 = LoadTexture("b5_metal_slug.png");
+    Texture2D b6 = LoadTexture("b6_metal_slug.png");
     Texture2D startWall = LoadTexture("StartWall.png");
     Texture2D helicopter1 = LoadTexture("helicopter.png");
     Texture2D rocketTexture = LoadTexture("crab_enemy.png");
@@ -572,7 +756,10 @@ int main()
     Bullet bullets[MAX_BULLETS];
     Rocket rocket[MAX_ROCKETS];
     Enemy Enemy[MAX_ENEMIES];
+    Drone drones[MAX_DRONES];
+    DroneBullet droneBullets[MAX_DRONE_BULLETS];
 
+   
     Tank tank;
     Player player;
     Player player2;
@@ -583,6 +770,8 @@ int main()
     int b2x = SCREEN_WIDTH;
     int b3x = 0;
     int b4x = SCREEN_WIDTH;
+    int b5x = 0;
+    int b6x = SCREEN_WIDTH;
     int floor = 375;
     int score = 0;
     int health = 20;
@@ -591,6 +780,8 @@ int main()
     bool gameover = false;
     bool gamestarted = false;
     bool startLevel2 = false;
+    bool startLevel3 = false;
+
 
     float healthBarWidth = 300;
     float healthBarHeight = 30;
@@ -600,10 +791,14 @@ int main()
     b2.width = SCREEN_WIDTH;
     b3.width = SCREEN_WIDTH;
     b4.width = SCREEN_WIDTH;
+    b5.width = SCREEN_WIDTH;
+    b6.width = SCREEN_WIDTH;
     b1.height = SCREEN_HEIGHT;
     b2.height = SCREEN_HEIGHT;
     b3.height = SCREEN_HEIGHT;
     b4.height = SCREEN_HEIGHT;
+    b5.height = SCREEN_HEIGHT;
+    b6.height = SCREEN_HEIGHT;
     title.width = SCREEN_WIDTH;
     title.height = SCREEN_HEIGHT;
     level2.width = SCREEN_WIDTH;
@@ -620,7 +815,8 @@ int main()
     InitRocket(rocket, rocketTexture, player);
     InitBullets(bullets, bulletTextureRight);
     InitHelicopter(helicopter,helicopter1, player);
-
+    InitDrone(drones, droneTexture);
+    InitDroneBullets(droneBullets);
     while (!WindowShouldClose())
     {
         BeginDrawing();
@@ -739,6 +935,55 @@ int main()
                     }
                 }
                 
+                // .:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.
+                //                      LEVEL # 03
+                // .:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.
+
+                if (score >= 20 && !startLevel3)
+                {
+                    DrawTexture(level2, SCREEN_WIDTH / 2 - level2.width / 2, SCREEN_HEIGHT / 2 - level2.height / 2, WHITE);
+                    DrawText("Press ENTER to Start Level 3", SCREEN_WIDTH / 2 - 150, SCREEN_HEIGHT / 2 + 50, 20, GREEN);
+
+                    if (IsKeyPressed(KEY_ENTER))
+                    {
+                        startLevel3 = true;
+                        for (int i = 0; i < MAX_DRONES; i++)
+                        {
+                            drones[i].position.x = SCREEN_WIDTH + (float)(i * 200);
+                            drones[i].position.y = (float)(100 + rand() % 200);
+                            drones[i].active = true;
+                        }
+                    }
+                }
+
+                if (startLevel3)
+                {
+                    DrawTexture(b5, b5x, 0, WHITE);
+                    DrawTexture(b6, b6x, 0, WHITE);
+                    SwitchPlayerDirection(player, deltaTime, b5x, b6x);
+
+                    if (b5x <= -SCREEN_WIDTH)
+                        b5x = SCREEN_WIDTH;
+
+                    if (b6x <= -SCREEN_WIDTH)
+                        b6x = SCREEN_WIDTH;
+
+                    MoveDrones(drones, deltaTime);
+                    MoveDroneBullets(droneBullets, deltaTime);
+                    DroneShooting(drones, droneBullets, player);
+                    CheckCollisionWithDrones(bullets, drones, score);
+                    CheckPlayerDroneBulletCollision(player, droneBullets, health);
+                    DrawPlayer(player);
+                    DrawBullets(bullets);
+                    DrawDrones(drones);
+                    DrawDroneBullets(droneBullets);
+                    if (score >= 30)  
+                    {
+                        DrawText("LEVEL 3 COMPLETE!", SCREEN_WIDTH / 2 - 150, SCREEN_HEIGHT / 2, 30, GREEN);
+                    }
+                }
+
+
                 DrawText(TextFormat("SCORE : %d", score), 7, 7, 30, GREEN);
                 DrawRectangle(SCREEN_WIDTH - healthBarWidth - 10, 10, healthBarWidth, healthBarHeight, DARKGRAY);                  // Background
                 DrawRectangle(SCREEN_WIDTH - healthBarWidth - 10, 10, healthBarWidth * healthPercentage, healthBarHeight, GREEN);  // Health Bar
@@ -759,11 +1004,15 @@ int main()
     UnloadTexture(player.textureRight);
     UnloadTexture(player.textureLeft);
     UnloadTexture(tank.texture);
+    UnloadTexture(droneTexture);
+
     UnloadTexture(title);
     UnloadTexture(b1);
     UnloadTexture(b2);
     UnloadTexture(b3);
     UnloadTexture(b4);
+    UnloadTexture(b5);
+    UnloadTexture(b6);
     UnloadSound  (shoot);
 
     CloseWindow();
