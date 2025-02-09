@@ -23,7 +23,6 @@ struct Player
     bool isFacingRight;
     Rectangle collider;
 };
-
 struct Enemy
 {
     Texture2D currentTexture;                // --->  Active texture based on direction
@@ -101,7 +100,6 @@ void InitEnemy(Enemy& enemy, int floor)
     enemy.position = { 100, (float)floor };
     enemy.speed = 100.0f;
 }
-
 void InitTank(Tank& tank)
 {
     tank.texture = LoadTexture("tank_enemy.png");
@@ -242,7 +240,7 @@ void CheckCollision(Bullet bullet[], Rocket rocket[], int &score)
         {
             for (int j = 0; j < MAX_ROCKETS; j++)
             {
-                if (CheckCollisionRecs(bullet[i].collider, rocket[i].collider))
+                if (CheckCollisionRecs(bullet[i].collider, rocket[j].collider))
                 {
                     bullet[i].active = false;
                     float rocketPosX = (rand() % (SCREEN_WIDTH - 40));
@@ -292,7 +290,6 @@ void DrawPlayer(Player& player)
 {
     DrawTexture(player.currentTexture, player.position.x, player.position.y, WHITE);
 }
-
 void DrawEnemy(Enemy& enemy)
 {
     DrawTexture(enemy.currentTexture, enemy.position.x, enemy.position.y, WHITE);
